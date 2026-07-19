@@ -1,0 +1,270 @@
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { useArmakStore } from '../lib/store';
+import { type Priority, type DeadlineType } from '../lib/localDB';
+import { toJalaali, jalaaliToTimestamp, formatJalaaliDate, PERSIAN_MONTHS, jalaaliMonthLength, todayJalaali } from '../lib/jalali';
+import { X, Plus } from 'lucide-react-native';
+import { COLORS, priorityConfig, CATEGORY_COLORS, catColor } from '../lib/theme';
+
+const WEEK_DAYS = [
+  { id: 0, label: 'شنبه' }, { id: 1, label: 'یکشنبه' }, { id: 2, label: 'دوشنبه' },
+  { id: 3, label: 'سه‌شنبه' }, { id: 4, label: 'چهارشنبه' }, { id: 5, label: 'پنجشنبه' }, { id: 6, label: 'جمعه' },
+];
+
+export default function TaskForm() {
+  const { isTaskFormOpen, closeTaskForm, editingTask, categories, createTask, editTask } = useArmakStore();
+
+  const today = todayJalaali();
+  const initJ = editingTask ? toJalaali(new Date(editingTask.deadline)) : today;
+  const initD = editingTask ? new Date(editingTask.deadline) : new Date();
+
+  const [title, setTitle] = useState(editingTask?.title || '');
+  const [description, setDescription] = useState(editingTask?.description || '');
+  const [categoryId, setCategoryId] = useState(editingTask?.categoryId || '');
+  const [priority, setPriority] = useState<Priority>(editingTask?.priority || 'medium');
+  const [deadlineType, setDeadlineType] = useState<DeadlineType>(editingTask?.deadlineType || 'once');
+  const [recurringDays, setRecurringDays] = useState(editingTask?.deadlineType === 'daily' ? (editingTask.recurringInterval || 1) : 1);
+  const [weekDays, setWeekDays] = useState<number[]>(
+    editingTask?.deadlineType === 'weekly'
+      ? Array.from({ length: 7 }, (_, i) => i).filter(i => (editingTask.recurringInterval & (1 << i)))
+      : []
+  );
+  const [jy, setJy] = useState(initJ.jy);
+  const [jm, setJm] = useState(initJ.jm);
+  const [jd, setJd] = useState(initJ.jd);
+  const [hour, setHour] = useState(initD.getHours());
+  const [minute, setMinute] = useState(initD.getMinutes());
+
+  // ریست فرم هنگام باز شدن
+  const key = editingTask?.id || 'new';
+  const [resetKey, setResetKey] = useState('');
+  if (isTaskFormOpen && resetKey !== key) {
+    setResetKey(key);
+    setTitle(editingTask?.title || '');
+    setDescription(editingTask?.description || '');
+    setCategoryId(editingTask?.categoryId || '');
+    setPriority(editingTask?.priority || 'medium');
+    setDeadlineType(editingTask?.deadlineType || 'once');
+    setRecurringDays(editingTask?.deadlineType === 'daily' ? (editingTask.recurringInterval || 1) : 1);
+    setWeekDays(editingTask?.deadlineType === 'weekly'
+      ? Array.from({ length: 7 }, (_, i) => i).filter(i => (editingTask.recurringInterval & (1 << i)))
+      : []);
+    setJy(initJ.jy); setJm(initJ.jm); setJd(initJ.jd);
+    setHour(initD.getHours()); setMinute(initD.getMinutes());
+  }
+
+  const maxDay = jalaaliMonthLength(jy, jm);
+
+  const handleSubmit = async () => {
+    if (!title.trim()) return;
+    const deadline = jalaaliToTimestamp(jy, jm, jd, hour, minute);
+    let rec = 0;
+    if (deadlineType === 'daily') rec = recurringDays;
+    else if (deadlineType === 'weekly') weekDays.forEach(d => { rec |= (1 << d); });
+
+    const payload = {
+      title: title.trim(), description: description.trim(),
+      categoryId: categoryId || null, priority, deadlineType, deadline, recurringInterval: rec,
+    };
+    if (editingTask) await editTask({ id: editingTask.id, ...payload });
+    else await createTask(payload);
+    setResetKey('');
+    closeTaskForm();
+  };
+
+  return (
+    <Modal visible={isTaskFormOpen} animationType="slide" onRequestClose={closeTaskForm}>
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 48 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.text }}>
+            {editingTask ? 'ویرایش تسک' : 'تسک جدید'}
+          </Text>
+          <TouchableOpacity onPress={closeTaskForm} style={{ padding: 4 }}>
+            <X size={22} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+          <Field label="عنوان تسک *">
+            <TextInput
+              value={title} onChangeText={setTitle} placeholder="مثلاً: نوشتن مقاله"
+              placeholderTextColor={COLORS.textMuted}
+              style={inputStyle}
+            />
+          </Field>
+
+          <Field label="توضیحات">
+            <TextInput
+              value={description} onChangeText={setDescription} placeholder="جزئیات بیشتر..."
+              placeholderTextColor={COLORS.textMuted} style={[inputStyle, { height: 72 }]} multiline
+            />
+          </Field>
+
+          <Field label="دسته‌بندی">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <Pill label="بدون دسته" active={!categoryId} onPress={() => setCategoryId('')} />
+              {categories.map(cat => (
+                <Pill key={cat.id} label={cat.name} color={catColor(cat.color)} active={cat.id === categoryId} onPress={() => setCategoryId(cat.id)} />
+              ))}
+            </View>
+          </Field>
+
+          <Field label="اولویت">
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['high', 'medium', 'low'] as Priority[]).map(p => (
+                <TouchableOpacity
+                  key={p}
+                  onPress={() => setPriority(p)}
+                  style={{
+                    flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: priority === p ? priorityConfig[p].bg : COLORS.surfaceAlt,
+                    borderWidth: priority === p ? 2 : 0, borderColor: priorityConfig[p].text,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: priorityConfig[p].text }}>{priorityConfig[p].label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Field>
+
+          <Field label="نوع ددلاین">
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['once', 'daily', 'weekly'] as DeadlineType[]).map(t => (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => setDeadlineType(t)}
+                  style={{
+                    flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: deadlineType === t ? COLORS.primary : COLORS.surfaceAlt,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: deadlineType === t ? '#fff' : COLORS.text }}>
+                    {t === 'once' ? 'یک‌بار' : t === 'daily' ? 'روزانه' : 'هفتگی'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Field>
+
+          {deadlineType === 'daily' && (
+            <Field label="هر چند روز یکبار؟">
+              <TextInput
+                value={String(recurringDays)} onChangeText={v => setRecurringDays(Math.max(1, parseInt(v) || 1))}
+                keyboardType="number-pad" style={[inputStyle, { width: 100, textAlign: 'center' }]}
+              />
+            </Field>
+          )}
+
+          {deadlineType === 'weekly' && (
+            <Field label="روزهای تکرار">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {WEEK_DAYS.map(day => {
+                  const sel = weekDays.includes(day.id);
+                  return (
+                    <TouchableOpacity
+                      key={day.id} onPress={() => setWeekDays(sel ? weekDays.filter(d => d !== day.id) : [...weekDays, day.id])}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+                        backgroundColor: sel ? COLORS.primary : COLORS.surfaceAlt,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: sel ? '#fff' : COLORS.text }}>{day.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </Field>
+          )}
+
+          <Field label="تاریخ ددلاین (شمسی)">
+            <View style={{ flexDirection: 'row', gap: 6, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 10 }}>
+              <DatePicker value={jy} items={Array.from({ length: 10 }, (_, i) => today.jy - 1 + i)} onChange={setJy} />
+              <DatePicker value={jm} items={Array.from({ length: 12 }, (_, i) => i + 1)} labels={PERSIAN_MONTHS} onChange={setJm} />
+              <DatePicker value={jd} items={Array.from({ length: maxDay }, (_, i) => i + 1)} onChange={setJd} />
+            </View>
+            <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 6 }}>{formatJalaaliDate(jy, jm, jd)}</Text>
+          </Field>
+
+          <Field label="ساعت">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput
+                value={String(hour).padStart(2, '0')} onChangeText={v => setHour(Math.min(23, Math.max(0, parseInt(v) || 0)))}
+                keyboardType="number-pad" style={[inputStyle, { width: 70, textAlign: 'center' }]}
+              />
+              <Text style={{ color: COLORS.textMuted }}>:</Text>
+              <TextInput
+                value={String(minute).padStart(2, '0')} onChangeText={v => setMinute(Math.min(59, Math.max(0, parseInt(v) || 0)))}
+                keyboardType="number-pad" style={[inputStyle, { width: 70, textAlign: 'center' }]}
+              />
+            </View>
+          </Field>
+
+          <TouchableOpacity
+            onPress={handleSubmit} disabled={!title.trim()}
+            style={{
+              backgroundColor: title.trim() ? COLORS.primary : COLORS.surfaceAlt,
+              paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 8,
+            }}
+          >
+            <Text style={{ color: title.trim() ? '#fff' : COLORS.textMuted, fontWeight: '700' }}>
+              {editingTask ? 'ذخیره تغییرات' : 'افزودن تسک'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+const inputStyle = {
+  backgroundColor: COLORS.surface,
+  borderRadius: 12,
+  paddingHorizontal: 14,
+  paddingVertical: 12,
+  fontSize: 14,
+  color: COLORS.text,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+  textAlign: 'right' as const,
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View>
+      <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 8 }}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+function Pill({ label, active, onPress, color }: { label: string; active: boolean; onPress: () => void; color?: string }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
+        backgroundColor: active ? COLORS.primary : (color ? `${color}55` : COLORS.surfaceAlt),
+      }}
+    >
+      <Text style={{ fontSize: 12, color: active ? '#fff' : COLORS.text, fontWeight: '600' }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function DatePicker({ value, items, labels, onChange }: { value: number; items: number[]; labels?: string[]; onChange: (v: number) => void }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border }}>
+      <Picker
+        selectedValue={value}
+        onValueChange={(v: number) => onChange(v)}
+        style={{ color: COLORS.text }}
+        itemStyle={{ color: COLORS.text }}
+      >
+        {items.map(i => (
+          <Picker.Item key={i} label={labels ? labels[i - 1] : String(i)} value={i} />
+        ))}
+      </Picker>
+    </View>
+  );
+}

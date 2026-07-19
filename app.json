@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "آرمک تسک",
+    "extra": {
+      "eas": {
+        "projectId": "ae6a5163-4b4e-477e-97b8-1814b0e2a812"
+      }
+    },
+    "slug": "armak-task",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#eaf2ff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.armak.task"
+    },
+    "android": {
+      "package": "com.armak.task",
+      "adaptiveIcon": {
+        "backgroundColor": "#eaf2ff"
+      }
+    },
+    "plugins": [
+      [
+        "expo-sqlite",
+        {
+          "assets": []
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}
