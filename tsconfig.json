@@ -5,7 +5,10 @@
     "moduleResolution": "bundler",
     "jsx": "react-native",
     "target": "esnext",
-    "lib": ["esnext", "dom"],
+    "lib": [
+      "esnext",
+      "dom"
+    ],
     "skipLibCheck": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -14,6 +17,14 @@
     "isolatedModules": true,
     "types": []
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "ios", "android"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "ios",
+    "android"
+  ],
+  "extends": "expo/tsconfig.base"
 }
