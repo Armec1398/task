@@ -1,9 +1,10 @@
 {
   "expo": {
     "name": "آرمک تسک",
+    "owner": "armec",
     "extra": {
       "eas": {
-        "projectId": "ae6a5163-4b4e-477e-97b8-1814b0e2a812"
+        "projectId": "4692cbc0-1610-453b-9931-da3d7f8a3846"
       }
     },
     "slug": "armak-task",
