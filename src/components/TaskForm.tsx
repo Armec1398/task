@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useArmakStore } from '../lib/store';
@@ -16,31 +16,26 @@ export default function TaskForm() {
   const { isTaskFormOpen, closeTaskForm, editingTask, categories, createTask, editTask } = useArmakStore();
 
   const today = todayJalaali();
-  const initJ = editingTask ? toJalaali(new Date(editingTask.deadline)) : today;
-  const initD = editingTask ? new Date(editingTask.deadline) : new Date();
+  const todayKey = `${today.jy}-${today.jm}-${today.jd}`;
 
-  const [title, setTitle] = useState(editingTask?.title || '');
-  const [description, setDescription] = useState(editingTask?.description || '');
-  const [categoryId, setCategoryId] = useState(editingTask?.categoryId || '');
-  const [priority, setPriority] = useState<Priority>(editingTask?.priority || 'medium');
-  const [deadlineType, setDeadlineType] = useState<DeadlineType>(editingTask?.deadlineType || 'once');
-  const [recurringDays, setRecurringDays] = useState(editingTask?.deadlineType === 'daily' ? (editingTask.recurringInterval || 1) : 1);
-  const [weekDays, setWeekDays] = useState<number[]>(
-    editingTask?.deadlineType === 'weekly'
-      ? Array.from({ length: 7 }, (_, i) => i).filter(i => (editingTask.recurringInterval & (1 << i)))
-      : []
-  );
-  const [jy, setJy] = useState(initJ.jy);
-  const [jm, setJm] = useState(initJ.jm);
-  const [jd, setJd] = useState(initJ.jd);
-  const [hour, setHour] = useState(initD.getHours());
-  const [minute, setMinute] = useState(initD.getMinutes());
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [priority, setPriority] = useState<Priority>('medium');
+  const [deadlineType, setDeadlineType] = useState<DeadlineType>('once');
+  const [recurringDays, setRecurringDays] = useState(1);
+  const [weekDays, setWeekDays] = useState<number[]>([]);
+  const [jy, setJy] = useState(today.jy);
+  const [jm, setJm] = useState(today.jm);
+  const [jd, setJd] = useState(today.jd);
+  const [hour, setHour] = useState(9);
+  const [minute, setMinute] = useState(0);
 
-  // ریست فرم هنگام باز شدن
-  const key = editingTask?.id || 'new';
-  const [resetKey, setResetKey] = useState('');
-  if (isTaskFormOpen && resetKey !== key) {
-    setResetKey(key);
+  // پر کردن فرم با مقادیر قبلی هنگام باز شدن (ادر یا ایجاد)
+  useEffect(() => {
+    if (!isTaskFormOpen) return;
+    const j = editingTask ? toJalaali(new Date(editingTask.deadline)) : today;
+    const d = editingTask ? new Date(editingTask.deadline) : new Date();
     setTitle(editingTask?.title || '');
     setDescription(editingTask?.description || '');
     setCategoryId(editingTask?.categoryId || '');
@@ -50,9 +45,9 @@ export default function TaskForm() {
     setWeekDays(editingTask?.deadlineType === 'weekly'
       ? Array.from({ length: 7 }, (_, i) => i).filter(i => (editingTask.recurringInterval & (1 << i)))
       : []);
-    setJy(initJ.jy); setJm(initJ.jm); setJd(initJ.jd);
-    setHour(initD.getHours()); setMinute(initD.getMinutes());
-  }
+    setJy(j.jy); setJm(j.jm); setJd(j.jd);
+    setHour(d.getHours()); setMinute(d.getMinutes());
+  }, [isTaskFormOpen, editingTask, todayKey]);
 
   const maxDay = jalaaliMonthLength(jy, jm);
 
@@ -69,7 +64,6 @@ export default function TaskForm() {
     };
     if (editingTask) await editTask({ id: editingTask.id, ...payload });
     else await createTask(payload);
-    setResetKey('');
     closeTaskForm();
   };
 

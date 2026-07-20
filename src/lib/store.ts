@@ -111,23 +111,26 @@ export const useArmakStore = create<ArmakStore>((set, get) => ({
         deadlineType: 'daily', deadline: nextDeadline, recurringInterval: task.recurringInterval,
       });
     } else if (task.deadlineType === 'weekly') {
-      const today = new Date();
       const bitmask = task.recurringInterval;
+      const today = new Date();
+      const h = new Date(task.deadline).getHours();
+      const m = new Date(task.deadline).getMinutes();
+      let bestDiff = Infinity;
       for (let d = 0; d < 7; d++) {
-        if (bitmask & (1 << d)) {
-          const targetDay = d === 6 ? 0 : d + 1;
-          let diff = targetDay - today.getDay();
-          if (diff <= 0) diff += 7;
-          const nextDate = new Date(today.getTime() + diff * 86400000);
-          const h = new Date(task.deadline).getHours();
-          const m = new Date(task.deadline).getMinutes();
-          nextDate.setHours(h, m, 0, 0);
-          await dbAddTask({
-            title: task.title, description: task.description,
-            categoryId: task.categoryId, priority: task.priority,
-            deadlineType: 'weekly', deadline: nextDate.getTime(), recurringInterval: bitmask,
-          });
-        }
+        if (!(bitmask & (1 << d))) continue;
+        const targetDay = d === 6 ? 0 : d + 1;
+        let diff = targetDay - today.getDay();
+        if (diff <= 0) diff += 7;
+        if (diff < bestDiff) bestDiff = diff;
+      }
+      if (bestDiff !== Infinity) {
+        const nextDate = new Date(today.getTime() + bestDiff * 86400000);
+        nextDate.setHours(h, m, 0, 0);
+        await dbAddTask({
+          title: task.title, description: task.description,
+          categoryId: task.categoryId, priority: task.priority,
+          deadlineType: 'weekly', deadline: nextDate.getTime(), recurringInterval: bitmask,
+        });
       }
     }
     await get().loadAll();

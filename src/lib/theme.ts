@@ -1,48 +1,48 @@
 export const COLORS = {
   // پس‌زمینه‌های پاستیلی آبی
-  bg: '#eef4fb',
+  bg: '#e8f1fd',
   surface: '#ffffff',
-  surfaceAlt: '#e3edfa',
+  surfaceAlt: '#dbeafe',
 
-  // آبی اصلی (primary)
-  primary: '#5b8def',
-  primarySoft: '#dbe7fb',
+  // آبی اصلی (primary) - آبی پاستیلی غنی
+  primary: '#3b82f6',
+  primarySoft: '#d3e4ff',
   primaryText: '#ffffff',
 
   // متن‌ها
-  text: '#27364a',
-  textMuted: '#7a8aa3',
+  text: '#1e2a3a',
+  textMuted: '#64748b',
 
   // مرزها
-  border: '#dde6f2',
+  border: '#cfe0f7',
 
   // وضعیت
-  success: '#7fd1ae',
-  successSoft: '#d9f5ea',
-  danger: '#f08a8a',
-  dangerSoft: '#fbe0e0',
-  warning: '#f3c969',
-  warningSoft: '#fbf0d4',
+  success: '#34d399',
+  successSoft: '#d1fae5',
+  danger: '#fb7185',
+  dangerSoft: '#ffe4e6',
+  warning: '#fbbf24',
+  warningSoft: '#fef3c7',
 
-  // دسته‌بندی‌ها (طیف پاستیلی آبی/فیروزه‌ای)
+  // دسته‌بندی‌ها (طیف پاستیلی آبی/فیروزه‌ای/بنفش)
   cat: {
-    blue: '#9ec5ff',
-    sky: '#a7def0',
-    mint: '#a8e6cf',
-    teal: '#9fe0dc',
-    lavender: '#c3bcf7',
-    ice: '#bfe3f5',
-    periwinkle: '#b3c4fb',
-    aqua: '#9fe8e0',
-    denim: '#7fa8e6',
-    powder: '#cfe2fb',
+    blue: '#60a5fa',
+    sky: '#38bdf8',
+    mint: '#34d399',
+    teal: '#2dd4bf',
+    lavender: '#a78bfa',
+    ice: '#7dd3fc',
+    periwinkle: '#818cf8',
+    aqua: '#22d3ee',
+    denim: '#3b82f6',
+    powder: '#93c5fd',
   } as Record<string, string>,
 };
 
 export const priorityConfig: Record<string, { label: string; bg: string; text: string }> = {
-  high: { label: 'زیاد', bg: '#fbe0e0', text: '#c05454' },
-  medium: { label: 'متوسط', bg: '#fbf0d4', text: '#b08923' },
-  low: { label: 'کم', bg: '#d9f5ea', text: '#3f9c7a' },
+  high: { label: 'زیاد', bg: '#ffe4e6', text: '#e11d48' },
+  medium: { label: 'متوسط', bg: '#fef3c7', text: '#d97706' },
+  low: { label: 'کم', bg: '#d1fae5', text: '#059669' },
 };
 
 export const CATEGORY_COLORS = [

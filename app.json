@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "آرمک تسک",
+    "name": "آرماک تسک",
     "owner": "armec",
     "extra": {
       "eas": {
@@ -14,7 +14,7 @@
     "newArchEnabled": true,
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#eaf2ff"
+      "backgroundColor": "#e8f1fd"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -26,7 +26,7 @@
     "android": {
       "package": "com.armak.task",
       "adaptiveIcon": {
-        "backgroundColor": "#eaf2ff"
+        "backgroundColor": "#e8f1fd"
       }
     },
     "plugins": [
