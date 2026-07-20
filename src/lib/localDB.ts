@@ -13,6 +13,7 @@ export type DeadlineType = 'once' | 'daily' | 'weekly';
 
 export interface Task {
   id: string;
+  parentId: string | null;
   title: string;
   description: string;
   categoryId: string | null;
@@ -37,23 +38,25 @@ export function initDB(): void {
        color TEXT NOT NULL,
        createdAt INTEGER NOT NULL
      );
-     CREATE TABLE IF NOT EXISTS tasks (
-       id TEXT PRIMARY KEY NOT NULL,
-       title TEXT NOT NULL,
-       description TEXT NOT NULL,
-       categoryId TEXT,
-       priority TEXT NOT NULL,
-       deadlineType TEXT NOT NULL,
-       deadline INTEGER NOT NULL,
-       recurringInterval INTEGER NOT NULL,
-       isCompleted INTEGER NOT NULL DEFAULT 0,
-       completedAt INTEGER,
-       createdAt INTEGER NOT NULL,
-       updatedAt INTEGER NOT NULL
-     );
-     CREATE INDEX IF NOT EXISTS idx_task_deadline ON tasks (deadline);
-     CREATE INDEX IF NOT EXISTS idx_task_category ON tasks (categoryId);
-     CREATE INDEX IF NOT EXISTS idx_task_completed ON tasks (isCompleted);`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY NOT NULL,
+        parentId TEXT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        categoryId TEXT,
+        priority TEXT NOT NULL,
+        deadlineType TEXT NOT NULL,
+        deadline INTEGER NOT NULL,
+        recurringInterval INTEGER NOT NULL,
+        isCompleted INTEGER NOT NULL DEFAULT 0,
+        completedAt INTEGER,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_deadline ON tasks (deadline);
+      CREATE INDEX IF NOT EXISTS idx_task_category ON tasks (categoryId);
+      CREATE INDEX IF NOT EXISTS idx_task_completed ON tasks (isCompleted);
+      CREATE INDEX IF NOT EXISTS idx_task_parent ON tasks (parentId);`
   );
 }
 
@@ -92,10 +95,10 @@ export async function addTask(
     updatedAt: Date.now(),
   };
   db.runSync(
-    `INSERT INTO tasks (id, title, description, categoryId, priority, deadlineType, deadline, recurringInterval, isCompleted, completedAt, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
+    `INSERT INTO tasks (id, parentId, title, description, categoryId, priority, deadlineType, deadline, recurringInterval, isCompleted, completedAt, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
     [
-      newTask.id, newTask.title, newTask.description, newTask.categoryId,
+      newTask.id, newTask.parentId ?? null, newTask.title, newTask.description, newTask.categoryId,
       newTask.priority, newTask.deadlineType, newTask.deadline, newTask.recurringInterval,
       newTask.createdAt, newTask.updatedAt,
     ]
@@ -108,9 +111,9 @@ export async function updateTask(id: string, updates: Partial<Task>): Promise<vo
   if (!existing) return;
   const merged = { ...existing, ...updates, updatedAt: Date.now() };
   db.runSync(
-    `UPDATE tasks SET title=?, description=?, categoryId=?, priority=?, deadlineType=?, deadline=?, recurringInterval=?, isCompleted=?, completedAt=?, updatedAt=? WHERE id=?`,
+    `UPDATE tasks SET parentId=?, title=?, description=?, categoryId=?, priority=?, deadlineType=?, deadline=?, recurringInterval=?, isCompleted=?, completedAt=?, updatedAt=? WHERE id=?`,
     [
-      merged.title, merged.description, merged.categoryId, merged.priority,
+      merged.parentId ?? null, merged.title, merged.description, merged.categoryId, merged.priority,
       merged.deadlineType, merged.deadline, merged.recurringInterval,
       merged.isCompleted ? 1 : 0, merged.completedAt, merged.updatedAt, id,
     ]
@@ -194,10 +197,10 @@ export async function importData(data: BackupData): Promise<void> {
   }
   for (const t of data.tasks) {
     db.runSync(
-      `INSERT OR REPLACE INTO tasks (id, title, description, categoryId, priority, deadlineType, deadline, recurringInterval, isCompleted, completedAt, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO tasks (id, parentId, title, description, categoryId, priority, deadlineType, deadline, recurringInterval, isCompleted, completedAt, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        t.id, t.title, t.description, t.categoryId, t.priority, t.deadlineType, t.deadline,
+        t.id, t.parentId ?? null, t.title, t.description, t.categoryId, t.priority, t.deadlineType, t.deadline,
         t.recurringInterval, t.isCompleted ? 1 : 0, t.completedAt, t.createdAt, t.updatedAt,
       ]
     );

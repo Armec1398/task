@@ -23,6 +23,7 @@ interface ArmakStore {
   isTaskFormOpen: boolean;
   isCategoryFormOpen: boolean;
   editingCategory: Category | null;
+  detailTask: Task | null;
   filterCategory: string | null;
 
   setActiveTab: (tab: TabType) => void;
@@ -33,6 +34,7 @@ interface ArmakStore {
   createTask: (data: {
     title: string; description: string; categoryId: string | null;
     priority: Priority; deadlineType: DeadlineType; deadline: number; recurringInterval: number;
+    parentId?: string | null;
   }) => Promise<void>;
   editTask: (data: {
     id: string; title: string; description: string; categoryId: string | null;
@@ -55,6 +57,9 @@ interface ArmakStore {
 
   getTasksForDate: (jy: number, jm: number, jd: number) => Task[];
   getCategoryById: (id: string) => Category | undefined;
+  getTaskTree: () => { parent: Task; children: Task[] }[];
+  openTaskDetail: (task: Task) => void;
+  closeTaskDetail: () => void;
   refreshNearestTask: () => Promise<void>;
 }
 
@@ -69,6 +74,7 @@ export const useArmakStore = create<ArmakStore>((set, get) => ({
   isTaskFormOpen: false,
   isCategoryFormOpen: false,
   editingCategory: null,
+  detailTask: null,
   filterCategory: null,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -84,7 +90,41 @@ export const useArmakStore = create<ArmakStore>((set, get) => ({
   },
 
   createTask: async (data) => {
-    await dbAddTask(data);
+    if (data.deadlineType === 'weekly' && data.recurringInterval > 0) {
+      const bitmask = data.recurringInterval;
+      const base = new Date(data.deadline);
+      const h = base.getHours();
+      const m = base.getMinutes();
+      const createdIds: string[] = [];
+      for (let d = 0; d < 7; d++) {
+        if (!(bitmask & (1 << d))) continue;
+        const targetDay = d === 6 ? 0 : d + 1;
+        let diff = targetDay - new Date().getDay();
+        if (diff < 0) diff += 7;
+        const nextDate = new Date();
+        nextDate.setDate(nextDate.getDate() + diff);
+        nextDate.setHours(h, m, 0, 0);
+        const sub = await dbAddTask({
+          title: data.title, description: data.description, categoryId: data.categoryId,
+          priority: data.priority, deadlineType: data.deadlineType, deadline: nextDate.getTime(),
+          recurringInterval: data.recurringInterval, parentId: null,
+        });
+        createdIds.push(sub.id);
+      }
+      // همه occurrenceها رو به اولی (والد) لینک کن
+      if (createdIds.length > 0) {
+        const parentId = createdIds[0];
+        for (const cid of createdIds) {
+          await dbUpdateTask(cid, { parentId });
+        }
+      }
+    } else {
+      await dbAddTask({
+        title: data.title, description: data.description, categoryId: data.categoryId,
+        priority: data.priority, deadlineType: data.deadlineType, deadline: data.deadline,
+        recurringInterval: data.recurringInterval, parentId: data.parentId ?? null,
+      });
+    }
     await get().loadAll();
   },
 
@@ -94,7 +134,15 @@ export const useArmakStore = create<ArmakStore>((set, get) => ({
   },
 
   removeTask: async (id) => {
-    await dbDeleteTask(id);
+    const task = get().tasks.find(t => t.id === id);
+    if (!task) return;
+    if (task.parentId) {
+      await dbDeleteTask(id);
+    } else {
+      const children = get().tasks.filter(t => t.parentId === id);
+      for (const c of children) await dbDeleteTask(c.id);
+      await dbDeleteTask(id);
+    }
     await get().loadAll();
   },
 
@@ -103,40 +151,19 @@ export const useArmakStore = create<ArmakStore>((set, get) => ({
     if (!task) return;
     await dbMarkComplete(id);
 
-    if (task.deadlineType === 'daily' && task.recurringInterval > 0) {
-      const nextDeadline = task.deadline + (task.recurringInterval * 86400000);
-      await dbAddTask({
-        title: task.title, description: task.description,
-        categoryId: task.categoryId, priority: task.priority,
-        deadlineType: 'daily', deadline: nextDeadline, recurringInterval: task.recurringInterval,
-      });
-    } else if (task.deadlineType === 'weekly') {
-      const bitmask = task.recurringInterval;
-      const today = new Date();
-      const h = new Date(task.deadline).getHours();
-      const m = new Date(task.deadline).getMinutes();
-      let bestDiff = Infinity;
-      for (let d = 0; d < 7; d++) {
-        if (!(bitmask & (1 << d))) continue;
-        const targetDay = d === 6 ? 0 : d + 1;
-        let diff = targetDay - today.getDay();
-        if (diff <= 0) diff += 7;
-        if (diff < bestDiff) bestDiff = diff;
-      }
-      if (bestDiff !== Infinity) {
-        const nextDate = new Date(today.getTime() + bestDiff * 86400000);
-        nextDate.setHours(h, m, 0, 0);
-        await dbAddTask({
-          title: task.title, description: task.description,
-          categoryId: task.categoryId, priority: task.priority,
-          deadlineType: 'weekly', deadline: nextDate.getTime(), recurringInterval: bitmask,
-        });
-      }
+    if (task.parentId) {
+      // این یه occurrence (زیر‌تسک) هست؛ فقط خودش علامت می‌خوره.
+    } else {
+      // این والد هست (مثلاً هفتگی)؛ همه occurrenceهای زیرش رو هم کامل کن.
+      const children = get().tasks.filter(t => t.parentId === id && !t.isCompleted);
+      for (const c of children) await dbMarkComplete(c.id);
     }
     await get().loadAll();
   },
 
   uncompleteTask: async (id) => {
+    const task = get().tasks.find(t => t.id === id);
+    if (!task) return;
     await dbMarkIncomplete(id);
     await get().loadAll();
   },
@@ -185,6 +212,21 @@ export const useArmakStore = create<ArmakStore>((set, get) => ({
   },
 
   getCategoryById: (id) => get().categories.find(c => c.id === id),
+
+  getTaskTree: () => {
+    const tasks = get().tasks;
+    const parents = tasks.filter(t => !t.parentId);
+    const tree = parents.map(parent => ({
+      parent,
+      children: tasks
+        .filter(t => t.parentId === parent.id)
+        .sort((a, b) => a.deadline - b.deadline),
+    }));
+    return tree;
+  },
+
+  openTaskDetail: (task) => set({ detailTask: task }),
+  closeTaskDetail: () => set({ detailTask: null }),
 
   refreshNearestTask: async () => {
     const nearest = await getNearestDeadlineTask();

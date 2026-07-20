@@ -8,7 +8,7 @@ import { COLORS, catColor } from '../lib/theme';
 export default function ReportsPage() {
   const { tasks, categories } = useArmakStore();
 
-  const completed = useMemo(() => tasks.filter(t => t.isCompleted), [tasks]);
+  const completed = useMemo(() => tasks.filter(t => t.isCompleted && !t.parentId), [tasks]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, { name: string; color: string; tasks: typeof completed }>();

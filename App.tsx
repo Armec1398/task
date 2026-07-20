@@ -8,6 +8,7 @@ import { formatRelativeTime } from './src/lib/jalali';
 import BottomNav from './src/components/BottomNav';
 import TaskList from './src/components/TaskList';
 import TaskForm from './src/components/TaskForm';
+import TaskDetail from './src/components/TaskDetail';
 import CalendarView from './src/components/CalendarView';
 import ReportsPage from './src/components/ReportsPage';
 import SettingsPage from './src/components/SettingsPage';
@@ -23,7 +24,7 @@ const TITLES: Record<string, string> = {
 export default function App() {
   const { activeTab, loadAll, isLoading, nearestTask, openTaskForm, tasks } = useArmakStore();
   useEffect(() => { initDB(); loadAll(); }, []);
-  const pendingCount = tasks.filter(t => !t.isCompleted).length;
+  const pendingCount = tasks.filter(t => !t.isCompleted && !t.parentId).length;
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <StatusBar style="dark" />
@@ -61,6 +62,7 @@ export default function App() {
         </TouchableOpacity>
       )}
       <TaskForm />
+      <TaskDetail />
       <BottomNav />
     </View>
   );
