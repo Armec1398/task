@@ -1,3 +1,4 @@
+  --non-interactive is not supported, use $CI=1 instead
 The following packages should be updated for best compatibility with the installed expo version:
   @react-native-picker/picker@2.11.0 - expected version: 2.9.0
   expo-document-picker@12.0.2 - expected version: ~13.0.3
