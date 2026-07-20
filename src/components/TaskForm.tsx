@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { useArmakStore } from '../lib/store';
 import { type Priority, type DeadlineType } from '../lib/localDB';
-import { toJalaali, jalaaliToTimestamp, formatJalaaliDate, PERSIAN_MONTHS, jalaaliMonthLength, todayJalaali } from '../lib/jalali';
+import { toJalaali, jalaaliToTimestamp, formatJalaaliDate, jalaaliMonthLength, todayJalaali } from '../lib/jalali';
 import { X, Plus } from 'lucide-react-native';
-import { COLORS, priorityConfig, CATEGORY_COLORS, catColor } from '../lib/theme';
+import { COLORS, priorityConfig, CATEGORY_COLORS, catColor, FONT } from '../lib/theme';
+import CalendarPicker from './CalendarPicker';
+import ClockPicker from './ClockPicker';
 
 const WEEK_DAYS = [
   { id: 0, label: 'شنبه' }, { id: 1, label: 'یکشنبه' }, { id: 2, label: 'دوشنبه' },
@@ -48,8 +49,6 @@ export default function TaskForm() {
     setJy(j.jy); setJm(j.jm); setJd(j.jd);
     setHour(d.getHours()); setMinute(d.getMinutes());
   }, [isTaskFormOpen, editingTask, todayKey]);
-
-  const maxDay = jalaaliMonthLength(jy, jm);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -172,25 +171,13 @@ export default function TaskForm() {
           )}
 
           <Field label="تاریخ ددلاین (شمسی)">
-            <View style={{ flexDirection: 'row', gap: 6, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 10 }}>
-              <DatePicker value={jy} items={Array.from({ length: 10 }, (_, i) => today.jy - 1 + i)} onChange={setJy} />
-              <DatePicker value={jm} items={Array.from({ length: 12 }, (_, i) => i + 1)} labels={PERSIAN_MONTHS} onChange={setJm} />
-              <DatePicker value={jd} items={Array.from({ length: maxDay }, (_, i) => i + 1)} onChange={setJd} />
-            </View>
-            <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 6 }}>{formatJalaaliDate(jy, jm, jd)}</Text>
+            <CalendarPicker value={{ jy, jm, jd }} onChange={(v) => { setJy(v.jy); setJm(v.jm); setJd(v.jd); }} />
+            <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 6, textAlign: 'center' }}>{formatJalaaliDate(jy, jm, jd)}</Text>
           </Field>
 
           <Field label="ساعت">
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput
-                value={String(hour).padStart(2, '0')} onChangeText={v => setHour(Math.min(23, Math.max(0, parseInt(v) || 0)))}
-                keyboardType="number-pad" style={[inputStyle, { width: 70, textAlign: 'center' }]}
-              />
-              <Text style={{ color: COLORS.textMuted }}>:</Text>
-              <TextInput
-                value={String(minute).padStart(2, '0')} onChangeText={v => setMinute(Math.min(59, Math.max(0, parseInt(v) || 0)))}
-                keyboardType="number-pad" style={[inputStyle, { width: 70, textAlign: 'center' }]}
-              />
+            <View style={{ alignItems: 'center' }}>
+              <ClockPicker hour={hour} minute={minute} onChange={(h, m) => { setHour(h); setMinute(m); }} />
             </View>
           </Field>
 
@@ -221,6 +208,7 @@ const inputStyle = {
   borderWidth: 1,
   borderColor: COLORS.border,
   textAlign: 'right' as const,
+  fontFamily: FONT.regular,
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -243,22 +231,5 @@ function Pill({ label, active, onPress, color }: { label: string; active: boolea
     >
       <Text style={{ fontSize: 12, color: active ? '#fff' : COLORS.text, fontWeight: '600' }}>{label}</Text>
     </TouchableOpacity>
-  );
-}
-
-function DatePicker({ value, items, labels, onChange }: { value: number; items: number[]; labels?: string[]; onChange: (v: number) => void }) {
-  return (
-    <View style={{ flex: 1, backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border }}>
-      <Picker
-        selectedValue={value}
-        onValueChange={(v: number) => onChange(v)}
-        style={{ color: COLORS.text }}
-        itemStyle={{ color: COLORS.text }}
-      >
-        {items.map(i => (
-          <Picker.Item key={i} label={labels ? labels[i - 1] : String(i)} value={i} />
-        ))}
-      </Picker>
-    </View>
   );
 }

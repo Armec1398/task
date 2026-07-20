@@ -7,7 +7,7 @@ import {
   formatJalaaliDate, timestampToJalaali, formatTime,
   jalaaliMonthLength, todayJalaali,
 } from '../lib/jalali';
-import { ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, Check, Edit3, Trash2 } from 'lucide-react-native';
 import { COLORS, catColor } from '../lib/theme';
 
 export default function CalendarView() {
@@ -16,7 +16,7 @@ export default function CalendarView() {
   const [viewMonth, setViewMonth] = useState(today.jm);
   const [selectedDay, setSelectedDay] = useState<{ jy: number; jm: number; jd: number } | null>(null);
 
-  const { tasks, categories } = useArmakStore();
+  const { tasks, categories, completeTask, uncompleteTask, removeTask, openTaskForm, openTaskDetail } = useArmakStore();
 
   const calendarDays = useMemo(() => getMonthCalendarDays(viewYear, viewMonth), [viewYear, viewMonth]);
 
@@ -123,19 +123,37 @@ export default function CalendarView() {
             selectedTasks.map(task => {
               const cat = categories.find(c => c.id === task.categoryId);
               return (
-                <View key={task.id} style={{ padding: 10, borderRadius: 12, borderWidth: 1, borderColor: `${COLORS.border}80`, backgroundColor: COLORS.surfaceAlt, opacity: task.isCompleted ? 0.6 : 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ flex: 1, fontSize: 13, color: task.isCompleted ? COLORS.textMuted : COLORS.text, textDecorationLine: task.isCompleted ? 'line-through' : 'none' }}>{task.title}</Text>
-                    {cat && (
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: `${catColor(cat.color)}66` }}>
-                        <Text style={{ fontSize: 10, color: COLORS.text }}>{cat.name}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                    <Text style={{ fontSize: 11, color: COLORS.textMuted }}>{formatTime(task.deadline)}</Text>
-                    {task.description ? <Text style={{ fontSize: 11, color: COLORS.textMuted, flex: 1 }} numberOfLines={1}>{task.description}</Text> : null}
-                  </View>
+                <View key={task.id} style={{ padding: 10, borderRadius: 12, borderWidth: 1, borderColor: `${COLORS.border}80`, backgroundColor: COLORS.surfaceAlt, opacity: task.isCompleted ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => task.isCompleted ? uncompleteTask(task.id) : completeTask(task.id)}
+                    style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center', borderColor: task.isCompleted ? COLORS.success : COLORS.primary, backgroundColor: task.isCompleted ? COLORS.success : 'transparent' }}
+                  >
+                    {task.isCompleted && <Check size={11} color="#fff" />}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => openTaskDetail(task)} style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ flex: 1, fontSize: 13, color: task.isCompleted ? COLORS.textMuted : COLORS.text, textDecorationLine: task.isCompleted ? 'line-through' : 'none' }}>{task.title}</Text>
+                      {cat && (
+                        <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: `${catColor(cat.color)}66` }}>
+                          <Text style={{ fontSize: 10, color: COLORS.text }}>{cat.name}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                      <Text style={{ fontSize: 11, color: COLORS.textMuted }}>{formatTime(task.deadline)}</Text>
+                      {task.description ? <Text style={{ fontSize: 11, color: COLORS.textMuted, flex: 1 }} numberOfLines={1}>{task.description}</Text> : null}
+                    </View>
+                  </TouchableOpacity>
+                  {!task.isCompleted && (
+                    <View style={{ flexDirection: 'row', gap: 2 }}>
+                      <TouchableOpacity onPress={() => openTaskForm(task)} style={{ padding: 4 }}>
+                        <Edit3 size={13} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => removeTask(task.id)} style={{ padding: 4 }}>
+                        <Trash2 size={13} color={COLORS.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               );
             })

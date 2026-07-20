@@ -58,6 +58,14 @@ export function initDB(): void {
       CREATE INDEX IF NOT EXISTS idx_task_completed ON tasks (isCompleted);
       CREATE INDEX IF NOT EXISTS idx_task_parent ON tasks (parentId);`
   );
+  addColumnIfMissing('tasks', 'parentId', 'TEXT');
+}
+
+function addColumnIfMissing(table: string, column: string, type: string): void {
+  const cols = db.getAllSync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (!cols.some(c => c.name === column)) {
+    db.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${type};`);
+  }
 }
 
 function uid(): string {
@@ -205,6 +213,11 @@ export async function importData(data: BackupData): Promise<void> {
       ]
     );
   }
+}
+
+export async function resetDatabase(): Promise<void> {
+  db.execSync('DROP TABLE IF EXISTS tasks; DROP TABLE IF EXISTS categories;');
+  initDB();
 }
 
 export { jalaaliToTimestamp };

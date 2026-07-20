@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useArmakStore } from '../lib/store';
 import { Plus, Edit3, Trash2, Check, X, Bell } from 'lucide-react-native';
-import { COLORS, CATEGORY_COLORS, catColor } from '../lib/theme';
+import { COLORS, CATEGORY_COLORS, catColor, FONT } from '../lib/theme';
 
 export function CategoryManager() {
   const { categories, createCategory, editCategory, removeCategory } = useArmakStore();
@@ -39,7 +39,7 @@ export function CategoryManager() {
           <TextInput
             value={name} onChangeText={setName} placeholder="نام دسته‌بندی"
             placeholderTextColor={COLORS.textMuted}
-            style={{ backgroundColor: COLORS.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, textAlign: 'right' }}
+            style={{ backgroundColor: COLORS.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, textAlign: 'right', fontFamily: FONT.regular }}
             autoFocus
           />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

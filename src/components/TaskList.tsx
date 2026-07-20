@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useArmakStore } from '../lib/store';
 import { type Task } from '../lib/localDB';
@@ -18,18 +18,46 @@ function recurringLabel(task: Task): string | null {
   return 'هفتگی';
 }
 
+type Row =
+  | { kind: 'single'; task: Task; category?: { id: string; name: string; color: string }; isOverdue: boolean }
+  | { kind: 'child'; task: Task; category?: { id: string; name: string; color: string }; parentTitle: string; isOverdue: boolean };
+
 export default function TaskList() {
   const {
     tasks, categories, filterCategory, setFilterCategory,
     completeTask, uncompleteTask, removeTask, openTaskForm, openTaskDetail,
   } = useArmakStore();
   const [showCompleted, setShowCompleted] = useState(false);
-
-  const tree = useArmakStore(s => s.getTaskTree());
-  const filteredTree = tree.filter(({ parent }) => !filterCategory || parent.categoryId === filterCategory);
-  const pendingTree = filteredTree.filter(({ parent, children }) => !parent.isCompleted && children.every(c => !c.isCompleted));
-  const completedTree = filteredTree.filter(({ parent, children }) => parent.isCompleted || children.some(c => c.isCompleted));
   const now = Date.now();
+
+  const rows = useMemo<Row[]>(() => {
+    const catOf = (id: string | null) => categories.find(c => c.id === id);
+    const result: Row[] = [];
+    for (const t of tasks) {
+      const overdue = t.deadline < now && !t.isCompleted;
+      if (t.parentId) {
+        const parent = tasks.find(p => p.id === t.parentId);
+        result.push({ kind: 'child', task: t, category: catOf(t.categoryId), parentTitle: parent?.title || '', isOverdue: overdue });
+      } else if (t.deadlineType === 'weekly' || t.deadlineType === 'daily') {
+        const children = tasks.filter(c => c.parentId === t.id).sort((a, b) => a.deadline - b.deadline);
+        if (children.length > 0) {
+          for (const c of children) {
+            result.push({ kind: 'child', task: c, category: catOf(c.categoryId), parentTitle: t.title, isOverdue: c.deadline < now && !c.isCompleted });
+          }
+        } else {
+          result.push({ kind: 'single', task: t, category: catOf(t.categoryId), isOverdue: overdue });
+        }
+      } else {
+        result.push({ kind: 'single', task: t, category: catOf(t.categoryId), isOverdue: overdue });
+      }
+    }
+    const filtered = result.filter(r => !filterCategory || r.category?.id === filterCategory);
+    filtered.sort((a, b) => a.task.deadline - b.task.deadline);
+    return filtered;
+  }, [tasks, categories, filterCategory, now]);
+
+  const pendingRows = rows.filter(r => !r.task.isCompleted);
+  const completedRows = rows.filter(r => r.task.isCompleted);
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -47,7 +75,7 @@ export default function TaskList() {
         ))}
       </ScrollView>
 
-      {pendingTree.length === 0 && !showCompleted && (
+      {pendingRows.length === 0 && !showCompleted && (
         <View style={{ alignItems: 'center', paddingVertical: 48 }}>
           <CheckSquare size={40} color={COLORS.textMuted} />
           <Text style={{ color: COLORS.textMuted, marginTop: 12 }}>تسکی برای انجام دادن نداری!</Text>
@@ -57,116 +85,61 @@ export default function TaskList() {
         </View>
       )}
 
-      {pendingTree.map(({ parent, children }) => (
-        <View key={parent.id}>
-          <TaskCard
-            task={parent}
-            category={categories.find(c => c.id === parent.categoryId)}
-            isOverdue={parent.deadline < now}
-            showChevron={children.length > 0}
-            onComplete={() => completeTask(parent.id)}
-            onEdit={() => openTaskForm(parent)}
-            onDelete={() => removeTask(parent.id)}
-            onOpen={() => openTaskDetail(parent)}
+      {pendingRows.map(r => r.kind === 'single' ? (
+        <TaskCard
+          key={r.task.id}
+          task={r.task}
+          category={r.category}
+          isOverdue={r.isOverdue}
+          onComplete={() => completeTask(r.task.id)}
+          onEdit={() => openTaskForm(r.task)}
+          onDelete={() => removeTask(r.task.id)}
+          onOpen={() => openTaskDetail(r.task)}
+        />
+      ) : (
+        <View key={r.task.id} style={{ marginRight: 18 }}>
+          <SubTaskRow
+            task={r.task}
+            parentTitle={r.parentTitle}
+            category={r.category}
+            isOverdue={r.isOverdue}
+            onToggle={() => r.task.isCompleted ? uncompleteTask(r.task.id) : completeTask(r.task.id)}
+            onOpen={() => openTaskDetail(r.task)}
           />
-          {children.map(child => (
-            <View key={child.id} style={{ marginRight: 18, marginTop: 8 }}>
-              <SubTaskRow
-                task={child}
-                category={categories.find(c => c.id === child.categoryId)}
-                isOverdue={child.deadline < now}
-                onToggle={() => child.isCompleted ? uncompleteTask(child.id) : completeTask(child.id)}
-                onOpen={() => openTaskDetail(child)}
-              />
-            </View>
-          ))}
         </View>
       ))}
 
-      {completedTree.length > 0 && (
+      {completedRows.length > 0 && (
         <TouchableOpacity onPress={() => setShowCompleted(!showCompleted)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}>
           {showCompleted ? <ChevronUp size={16} color={COLORS.textMuted} /> : <ChevronDown size={16} color={COLORS.textMuted} />}
-          <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>انجام‌شده ({completedTree.length})</Text>
+          <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>انجام‌شده ({completedRows.length})</Text>
         </TouchableOpacity>
       )}
 
-      {showCompleted && completedTree.map(({ parent, children }) => (
-        <View key={parent.id}>
-          <TaskCard
-            task={parent}
-            category={categories.find(c => c.id === parent.categoryId)}
+      {showCompleted && completedRows.map(r => r.kind === 'single' ? (
+        <TaskCard
+          key={r.task.id}
+          task={r.task}
+          category={r.category}
+          isCompleted
+          onComplete={() => uncompleteTask(r.task.id)}
+          onEdit={() => openTaskForm(r.task)}
+          onDelete={() => removeTask(r.task.id)}
+          onOpen={() => openTaskDetail(r.task)}
+        />
+      ) : (
+        <View key={r.task.id} style={{ marginRight: 18 }}>
+          <SubTaskRow
+            task={r.task}
+            parentTitle={r.parentTitle}
+            category={r.category}
             isCompleted
-            showChevron={children.length > 0}
-            onComplete={() => uncompleteTask(parent.id)}
-            onEdit={() => openTaskForm(parent)}
-            onDelete={() => removeTask(parent.id)}
-            onOpen={() => openTaskDetail(parent)}
+            onToggle={() => r.task.isCompleted ? uncompleteTask(r.task.id) : completeTask(r.task.id)}
+            onOpen={() => openTaskDetail(r.task)}
           />
-          {children.map(child => (
-            <View key={child.id} style={{ marginRight: 18, marginTop: 8 }}>
-              <SubTaskRow
-                task={child}
-                category={categories.find(c => c.id === child.categoryId)}
-                isCompleted={child.isCompleted}
-                onToggle={() => child.isCompleted ? uncompleteTask(child.id) : completeTask(child.id)}
-                onOpen={() => openTaskDetail(child)}
-              />
-            </View>
-          ))}
         </View>
       ))}
     </ScrollView>
-  );
-}
-
-function SubTaskRow({
-  task, category, isOverdue, isCompleted, onToggle, onOpen,
-}: {
-  task: Task;
-  category?: { id: string; name: string; color: string };
-  isOverdue?: boolean;
-  isCompleted?: boolean;
-  onToggle: () => void;
-  onOpen: () => void;
-}) {
-  const pr = priorityConfig[task.priority];
-  const { jy, jm, jd } = timestampToJalaali(task.deadline);
-  return (
-    <View
-      style={{
-        flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 12,
-        borderWidth: 1, borderStyle: 'dashed',
-        backgroundColor: isCompleted ? COLORS.surfaceAlt : (isOverdue ? COLORS.dangerSoft : COLORS.surface),
-        borderColor: isCompleted ? COLORS.border : (isOverdue ? COLORS.danger : COLORS.primary + '55'),
-        opacity: isCompleted ? 0.7 : 1,
-      }}
-    >
-      <TouchableOpacity
-        onPress={onToggle}
-        style={{
-          width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center',
-          borderColor: isCompleted ? COLORS.success : (isOverdue ? COLORS.danger : COLORS.primary),
-          backgroundColor: isCompleted ? COLORS.success : 'transparent',
-        }}
-      >
-        {isCompleted && <Check size={11} color="#fff" />}
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={onOpen} style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: isCompleted ? COLORS.textMuted : COLORS.text, textDecorationLine: isCompleted ? 'line-through' : 'none' }}>
-          {task.title}
-        </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <Text style={{ fontSize: 10, color: COLORS.textMuted }}>{formatJalaaliShort(jy, jm, jd)} - {formatTime(task.deadline)}</Text>
-          <View style={{ backgroundColor: pr.bg, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 }}>
-            <Text style={{ fontSize: 9, color: pr.text }}>{pr.label}</Text>
-          </View>
-          {category && (
-            <Text style={{ fontSize: 10, color: COLORS.textMuted }}>#{category.name}</Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    </View>
   );
 }
 
@@ -185,13 +158,12 @@ function Chip({ label, active, onPress, color }: { label: string; active: boolea
 }
 
 function TaskCard({
-  task, category, isOverdue, isCompleted, showChevron, onComplete, onEdit, onDelete, onOpen,
+  task, category, isOverdue, isCompleted, onComplete, onEdit, onDelete, onOpen,
 }: {
   task: Task;
   category?: { id: string; name: string; color: string };
   isOverdue?: boolean;
   isCompleted?: boolean;
-  showChevron?: boolean;
   onComplete: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -266,7 +238,6 @@ function TaskCard({
 
         {!isCompleted && (
           <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-            {showChevron && <ChevronDown size={14} color={COLORS.textMuted} />}
             <TouchableOpacity onPress={onEdit} style={{ padding: 6 }}>
               <Edit3 size={14} color={COLORS.textMuted} />
             </TouchableOpacity>
@@ -276,6 +247,61 @@ function TaskCard({
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+function SubTaskRow({
+  task, parentTitle, category, isOverdue, isCompleted, onToggle, onOpen,
+}: {
+  task: Task;
+  parentTitle: string;
+  category?: { id: string; name: string; color: string };
+  isOverdue?: boolean;
+  isCompleted?: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
+  const pr = priorityConfig[task.priority];
+  const { jy, jm, jd } = timestampToJalaali(task.deadline);
+  const WEEK = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+  const weekday = WEEK[new Date(task.deadline).getDay()];
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 12,
+        borderWidth: 1, borderStyle: 'dashed',
+        backgroundColor: isCompleted ? COLORS.surfaceAlt : (isOverdue ? COLORS.dangerSoft : COLORS.surface),
+        borderColor: isCompleted ? COLORS.border : (isOverdue ? COLORS.danger : COLORS.primary + '55'),
+        opacity: isCompleted ? 0.7 : 1,
+      }}
+    >
+      <TouchableOpacity
+        onPress={onToggle}
+        style={{
+          width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center',
+          borderColor: isCompleted ? COLORS.success : (isOverdue ? COLORS.danger : COLORS.primary),
+          backgroundColor: isCompleted ? COLORS.success : 'transparent',
+        }}
+      >
+        {isCompleted && <Check size={11} color="#fff" />}
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={onOpen} style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: isCompleted ? COLORS.textMuted : COLORS.text, textDecorationLine: isCompleted ? 'line-through' : 'none' }}>
+          {parentTitle} · {weekday}
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <Text style={{ fontSize: 10, color: COLORS.textMuted }}>{formatJalaaliShort(jy, jm, jd)} - {formatTime(task.deadline)}</Text>
+          <View style={{ backgroundColor: pr.bg, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 }}>
+            <Text style={{ fontSize: 9, color: pr.text }}>{pr.label}</Text>
+          </View>
+          {category && (
+            <Text style={{ fontSize: 10, color: COLORS.textMuted }}>#{category.name}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }

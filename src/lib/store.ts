@@ -5,7 +5,7 @@ import {
   markTaskComplete as dbMarkComplete, markTaskIncomplete as dbMarkIncomplete,
   addCategory as dbAddCategory, updateCategory as dbUpdateCategory,
   deleteCategory as dbDeleteCategory, exportData, importData,
-  getNearestDeadlineTask,
+  getNearestDeadlineTask, resetDatabase as dbResetDatabase,
   type Task, type Category, type Priority, type DeadlineType,
 } from './localDB';
 import { timestampToJalaali } from './jalali';
@@ -54,6 +54,7 @@ interface ArmakStore {
 
   backupData: () => Promise<string>;
   restoreData: (json: string) => Promise<void>;
+  resetDatabase: () => Promise<void>;
 
   getTasksForDate: (jy: number, jm: number, jd: number) => Task[];
   getCategoryById: (id: string) => Category | undefined;
@@ -197,6 +198,11 @@ export const useArmakStore = create<ArmakStore>((set, get) => ({
   restoreData: async (json) => {
     const data = JSON.parse(json);
     await importData(data);
+    await get().loadAll();
+  },
+
+  resetDatabase: async () => {
+    await dbResetDatabase();
     await get().loadAll();
   },
 

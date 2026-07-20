@@ -52,3 +52,11 @@ export const CATEGORY_COLORS = [
 export function catColor(name: string): string {
   return COLORS.cat[name] || COLORS.primarySoft;
 }
+
+export const FONT = {
+  regular: 'Vazirmatn',
+  medium: 'Vazirmatn-Medium',
+  bold: 'Vazirmatn-Bold',
+} as const;
+
+export const inputFontStyle = { fontFamily: FONT.regular } as const;

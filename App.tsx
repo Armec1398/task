@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, TextProps, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Plus, Bell } from 'lucide-react-native';
 import { useArmakStore } from './src/lib/store';
@@ -13,6 +13,8 @@ import CalendarView from './src/components/CalendarView';
 import ReportsPage from './src/components/ReportsPage';
 import SettingsPage from './src/components/SettingsPage';
 import { COLORS } from './src/lib/theme';
+import { prepareAppearance, FONT } from './src/lib/appearance';
+import { setupNotifications, updatePersistentNotification } from './src/lib/notifications';
 
 const TITLES: Record<string, string> = {
   tasks: 'تسک‌ها',
@@ -21,15 +23,26 @@ const TITLES: Record<string, string> = {
   settings: 'تنظیمات',
 };
 
+(Text as any).defaultProps = (Text as any).defaultProps || {};
+(Text as any).defaultProps.style = [{ fontFamily: FONT.regular }, (Text as any).defaultProps.style];
+
 export default function App() {
   const { activeTab, loadAll, isLoading, nearestTask, openTaskForm, tasks } = useArmakStore();
-  useEffect(() => { initDB(); loadAll(); }, []);
+  useEffect(() => {
+    initDB();
+    loadAll();
+    prepareAppearance();
+    setupNotifications();
+  }, []);
+  useEffect(() => {
+    updatePersistentNotification(tasks);
+  }, [tasks]);
   const pendingCount = tasks.filter(t => !t.isCompleted && !t.parentId).length;
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <StatusBar style="dark" />
       {nearestTask && !nearestTask.isCompleted && activeTab === 'tasks' && (
-        <View style={{ backgroundColor: COLORS.primarySoft, paddingTop: 48, paddingHorizontal: 16, paddingVertical: 12 }}>
+        <View style={{ backgroundColor: COLORS.primarySoft, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 480, alignSelf: 'center', width: '100%' }}>
             <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary + '33', alignItems: 'center', justifyContent: 'center' }}>
               <Bell size={14} color={COLORS.primary} />
@@ -64,6 +77,6 @@ export default function App() {
       <TaskForm />
       <TaskDetail />
       <BottomNav />
-    </View>
+    </SafeAreaView>
   );
 }

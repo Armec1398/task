@@ -6,7 +6,7 @@ import { COLORS } from '../lib/theme';
 import * as DocumentPicker from 'expo-document-picker';
 
 export default function SettingsPage() {
-  const { backupData, restoreData } = useArmakStore();
+  const { backupData, restoreData, resetDatabase } = useArmakStore();
 
   const handleBackup = async () => {
     const json = await backupData();
@@ -53,6 +53,16 @@ export default function SettingsPage() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <TouchableOpacity
+        onPress={() => Alert.alert('ریست دیتابیس', 'همه تسک‌ها و دسته‌بندی‌ها پاک میشن. ادامه می‌دی؟', [
+          { text: 'انصراف', style: 'cancel' },
+          { text: 'ریست کن', style: 'destructive', onPress: async () => { await resetDatabase(); Alert.alert('انجام شد', 'دیتابیس ریست شد.'); } },
+        ])}
+        style={{ backgroundColor: COLORS.dangerSoft, paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+      >
+        <Text style={{ color: COLORS.danger, fontWeight: '700' }}>ریست دیتابیس (پاک کردن همه)</Text>
+      </TouchableOpacity>
 
       <View style={{ alignItems: 'center', paddingVertical: 16 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.textMuted }}>آرمک تسک</Text>

@@ -36,7 +36,13 @@
           "assets": []
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-notifications"
+    ],
+    "fonts": [
+      "./assets/fonts/Vazirmatn-Regular.ttf",
+      "./assets/fonts/Vazirmatn-Medium.ttf",
+      "./assets/fonts/Vazirmatn-Bold.ttf"
     ]
   }
 }
