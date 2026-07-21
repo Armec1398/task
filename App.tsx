@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, TextProps, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Plus, Bell } from 'lucide-react-native';
 import { useArmakStore } from './src/lib/store';
@@ -39,7 +40,8 @@ export default function App() {
   }, [tasks]);
   const pendingCount = tasks.filter(t => !t.isCompleted && !t.parentId).length;
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+    <SafeAreaProvider>
+    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <StatusBar style="dark" />
       {nearestTask && !nearestTask.isCompleted && activeTab === 'tasks' && (
         <View style={{ backgroundColor: COLORS.primarySoft, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
@@ -78,5 +80,6 @@ export default function App() {
       <TaskDetail />
       <BottomNav />
     </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
