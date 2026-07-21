@@ -64,7 +64,7 @@ export default function ReportsPage() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
       {/* فیلترها */}
-      <View style={{ backgroundColor: COLORS.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: COLORS.border, gap: 12 }}>
+      <View style={{ backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.border, gap: 14 }}>
         <TouchableOpacity onPress={() => setShowCatFilter(s => !s)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text }}>
             دسته‌بندی: {filterCat ? (categories.find(c => c.id === filterCat)?.name || '؟') : 'همه'}
@@ -80,9 +80,9 @@ export default function ReportsPage() {
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <DateField label="از" value={fromDate} onChange={setFromDate} />
-          <DateField label="تا" value={toDate} onChange={setToDate} />
+        <View style={{ flexDirection: 'column', gap: 12 }}>
+          <DateField label="از تاریخ" value={fromDate} onChange={setFromDate} />
+          <DateField label="تا تاریخ" value={toDate} onChange={setToDate} />
         </View>
       </View>
 
@@ -137,25 +137,27 @@ function FilterChip({ label, active, onPress, color }: { label: string; active: 
 function DateField({ label, value, onChange }: { label: string; value: { jy: number; jm: number; jd: number }; onChange: (v: { jy: number; jm: number; jd: number }) => void }) {
   const today = todayJalaali();
   const years = Array.from({ length: 5 }, (_, i) => today.jy - 2 + i);
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 4 }}>{label}</Text>
-      <View style={{ flexDirection: 'row', gap: 4, backgroundColor: COLORS.surfaceAlt, borderRadius: 10, padding: 6 }}>
-        <PickerMini items={years} value={value.jy} onChange={(v: number) => onChange({ ...value, jy: v })} />
-        <PickerMini items={Array.from({ length: 12 }, (_, i) => i + 1)} labels={PERSIAN_MONTHS} value={value.jm} onChange={(v: number) => onChange({ ...value, jm: v })} />
-        <PickerMini items={Array.from({ length: jalaaliMonthLength(value.jy, value.jm) }, (_, i) => i + 1)} value={value.jd} onChange={(v: number) => onChange({ ...value, jd: v })} />
-      </View>
-    </View>
-  );
-}
-
-function PickerMini({ items, value, onChange, labels }: { items: number[]; value: number; onChange: (v: number) => void; labels?: string[] }) {
   const { Picker } = require('@react-native-picker/picker');
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border }}>
-      <Picker selectedValue={value} onValueChange={(v: number) => onChange(v)} style={{ color: COLORS.text }} itemStyle={{ color: COLORS.text }}>
-        {items.map(i => <Picker.Item key={i} label={labels ? labels[i - 1] : String(i)} value={i} />)}
-      </Picker>
+    <View>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.textMuted, marginBottom: 6 }}>{label}</Text>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <View style={{ flex: 2, backgroundColor: COLORS.surfaceAlt, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border }}>
+          <Picker selectedValue={value.jy} onValueChange={(v: number) => onChange({ ...value, jy: v })} style={{ color: COLORS.text }} itemStyle={{ color: COLORS.text }}>
+            {years.map(i => <Picker.Item key={i} label={String(i)} value={i} />)}
+          </Picker>
+        </View>
+        <View style={{ flex: 3, backgroundColor: COLORS.surfaceAlt, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border }}>
+          <Picker selectedValue={value.jm} onValueChange={(v: number) => onChange({ ...value, jm: v })} style={{ color: COLORS.text }} itemStyle={{ color: COLORS.text }}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(i => <Picker.Item key={i} label={PERSIAN_MONTHS[i - 1]} value={i} />)}
+          </Picker>
+        </View>
+        <View style={{ flex: 1.5, backgroundColor: COLORS.surfaceAlt, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border }}>
+          <Picker selectedValue={value.jd} onValueChange={(v: number) => onChange({ ...value, jd: v })} style={{ color: COLORS.text }} itemStyle={{ color: COLORS.text }}>
+            {Array.from({ length: jalaaliMonthLength(value.jy, value.jm) }, (_, i) => i + 1).map(i => <Picker.Item key={i} label={String(i)} value={i} />)}
+          </Picker>
+        </View>
+      </View>
     </View>
   );
 }

@@ -170,6 +170,14 @@ export default function TaskForm() {
             </Field>
           )}
 
+          {(deadlineType === 'weekly' || deadlineType === 'daily') && (
+            <View style={{ backgroundColor: COLORS.primarySoft, padding: 10, borderRadius: 10 }}>
+              <Text style={{ fontSize: 11, color: COLORS.primary, lineHeight: 18 }}>
+                تاریخ و ساعت زیر برای اولین occurrence استفاده میشه. بقیه occurrenceها به‌صورت خودکار محاسبه میشن.
+              </Text>
+            </View>
+          )}
+
           <Field label="تاریخ ددلاین (شمسی)">
             <CalendarPicker value={{ jy, jm, jd }} onChange={(v) => { setJy(v.jy); setJm(v.jm); setJd(v.jd); }} />
             <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 6, textAlign: 'center' }}>{formatJalaaliDate(jy, jm, jd)}</Text>
